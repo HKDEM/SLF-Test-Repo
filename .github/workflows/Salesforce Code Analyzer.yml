@@ -10,7 +10,6 @@ jobs:
   code-analysis:
     runs-on: ubuntu-latest
 
-    # This permission block is crucial for the action to create a pull request review.
     permissions:
       contents: read
       pull-requests: write
@@ -19,30 +18,56 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # Recommended to ensure the runner has the necessary dependencies for the engines
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '>=20.9.0'
+          node-version: '20'
 
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
-          java-version: '>=11'
+          java-version: '11'
           distribution: 'zulu'
 
       - name: Run Salesforce Code Analyzer
+        id: run-code-analyzer
         uses: forcedotcom/run-code-analyzer@v2.4.0
         with:
           run-command: 'run'
-          # Use --view detail to get a detailed breakdown in the job summary.
-          # --output-file is the v2 equivalent of --outfile
           run-arguments: '--target "./force-app" --view detail --output-file sfca_results.json'
 
       - name: Check for high severity violations
-        # This step uses the action's output to check the number of violations.
-        # This is a common practice for blocking the PR from being merged.
-        if: steps.run-code-analyzer.outputs.num-sev1-violations > 0
+        if: ${{ steps.run-code-analyzer.outputs.num-sev1-violations > 0 }}
         run: |
           echo "Found high severity violations. Please fix before merging."
           exit 1
+
+      - name: Post Code Analyzer results to PR
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+            const path = './sfca_results.json';
+
+            if (fs.existsSync(path)) {
+              const results = JSON.parse(fs.readFileSync(path, 'utf8'));
+              let message = "### Salesforce Code Analyzer Results\n\n";
+              
+              if (results.violations && results.violations.length > 0) {
+                results.violations.forEach(v => {
+                  message += `- **${v.severity}**: ${v.type} in ${v.file} at line ${v.line}\n`;
+                });
+              } else {
+                message += "No violations found. ✅";
+              }
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: message
+              });
+            } else {
+              console.log("sfca_results.json not found.");
+            }
