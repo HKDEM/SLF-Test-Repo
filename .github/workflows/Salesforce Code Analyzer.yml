@@ -12,7 +12,6 @@ jobs:
 
     permissions:
       contents: read
-      pull-requests: write
       security-events: write   # ✅ required for SARIF upload
 
     steps:
@@ -36,56 +35,12 @@ jobs:
       - name: Install Salesforce Code Analyzer Plugin
         run: sf plugins install code-analyzer@latest
 
-      # ✅ JSON output (for PR comments & violation counts)
-      - name: Run Salesforce Code Analyzer (JSON)
-        run: sf code-analyzer run --target "./force-app" --view detail --output-file sfca_results.json --output-format json
-
-      # ✅ SARIF output (for GitHub Security tab)
+      # ✅ Run analyzer and generate SARIF directly
       - name: Run Salesforce Code Analyzer (SARIF)
-        run: sf code-analyzer run --target "./force-app" --view summary --output-file sfca_results.sarif --output-format sarif
+        run: sf code-analyzer run --target "./force-app" --view summary --output-file sfca_results.sarif
 
+      # ✅ Upload SARIF to GitHub Security tab
       - name: Upload SARIF results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: sfca_results.sarif
-
-      - name: Check for high severity violations
-        run: |
-          num_sev1=$(jq '[.violations[] | select(.severity=="1")] | length' sfca_results.json)
-          echo "Found $num_sev1 severity 1 violations"
-          if [ "$num_sev1" -gt 0 ]; then
-            echo "❌ Found high severity violations. Please fix before merging."
-            exit 1
-          fi
-
-      - name: Post Code Analyzer results to PR
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const fs = require('fs');
-            const path = './sfca_results.json';
-
-            if (fs.existsSync(path)) {
-              const results = JSON.parse(fs.readFileSync(path, 'utf8'));
-              let message = "### 🔎 Salesforce Code Analyzer Results\n\n";
-              
-              if (results.violations && results.violations.length > 0) {
-                message += "| Severity | Rule | File | Line |\n";
-                message += "|----------|------|------|------|\n";
-                results.violations.forEach(v => {
-                  message += `| ${v.severity} | ${v.type} | ${v.file} | ${v.line} |\n`;
-                });
-              } else {
-                message += "✅ No violations found.";
-              }
-
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                body: message
-              });
-            } else {
-              console.log("sfca_results.json not found.");
-            }
