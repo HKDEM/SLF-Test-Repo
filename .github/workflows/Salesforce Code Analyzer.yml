@@ -1,0 +1,48 @@
+name: Salesforce Code Analyzer
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  code-analysis:
+    runs-on: ubuntu-latest
+
+    # This permission block is crucial for the action to create a pull request review.
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Recommended to ensure the runner has the necessary dependencies for the engines
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '>=20.9.0'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          java-version: '>=11'
+          distribution: 'zulu'
+
+      - name: Run Salesforce Code Analyzer
+        uses: forcedotcom/run-code-analyzer@v2.4.0
+        with:
+          run-command: 'run'
+          # Use --view detail to get a detailed breakdown in the job summary.
+          # --output-file is the v2 equivalent of --outfile
+          run-arguments: '--target "./force-app" --view detail --output-file sfca_results.json'
+
+      - name: Check for high severity violations
+        # This step uses the action's output to check the number of violations.
+        # This is a common practice for blocking the PR from being merged.
+        if: steps.run-code-analyzer.outputs.num-sev1-violations > 0
+        run: |
+          echo "Found high severity violations. Please fix before merging."
+          exit 1
