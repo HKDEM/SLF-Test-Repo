@@ -35,11 +35,9 @@ jobs:
       - name: Install Salesforce Code Analyzer Plugin
         run: sf plugins install code-analyzer@latest
 
-      # ✅ Run analyzer and generate SARIF directly
       - name: Run Salesforce Code Analyzer (SARIF)
-        run: sf code-analyzer run --target "./force-app" --view summary --output-file sfca_results.sarif
+        run: sf code-analyzer run --target "./force-app" --output-file sfca_results.sarif
 
-      # ✅ Upload SARIF to GitHub Security tab
       - name: Upload SARIF results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v3
         with:
