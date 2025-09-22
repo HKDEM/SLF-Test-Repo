@@ -5,7 +5,7 @@ on:
     branches:
       - master
       - develop
- 
+
 jobs:
   code-analysis:
     runs-on: ubuntu-latest
@@ -29,17 +29,25 @@ jobs:
           java-version: '11'
           distribution: 'zulu'
 
+      # ✅ Explicitly install Salesforce CLI
+      - name: Install Salesforce CLI
+        run: npm install -g @salesforce/cli@latest
+
+      # ✅ Explicitly install Code Analyzer plugin
+      - name: Install Salesforce Code Analyzer Plugin
+        run: sf plugins install code-analyzer@latest
+
       - name: Run Salesforce Code Analyzer
         id: run-code-analyzer
         uses: forcedotcom/run-code-analyzer@v2.4.0
         with:
-          run-command: 'run'
           run-arguments: '--target "./force-app" --view detail --output-file sfca_results.json'
+          results-artifact-name: salesforce-code-analyzer-results
 
       - name: Check for high severity violations
         if: ${{ steps.run-code-analyzer.outputs.num-sev1-violations > 0 }}
         run: |
-          echo "Found high severity violations. Please fix before merging."
+          echo "❌ Found high severity violations. Please fix before merging."
           exit 1
 
       - name: Post Code Analyzer results to PR
@@ -52,14 +60,16 @@ jobs:
 
             if (fs.existsSync(path)) {
               const results = JSON.parse(fs.readFileSync(path, 'utf8'));
-              let message = "### Salesforce Code Analyzer Results\n\n";
+              let message = "### 🔎 Salesforce Code Analyzer Results\n\n";
               
               if (results.violations && results.violations.length > 0) {
+                message += "| Severity | Rule | File | Line |\n";
+                message += "|----------|------|------|------|\n";
                 results.violations.forEach(v => {
-                  message += `- **${v.severity}**: ${v.type} in ${v.file} at line ${v.line}\n`;
+                  message += `| ${v.severity} | ${v.type} | ${v.file} | ${v.line} |\n`;
                 });
               } else {
-                message += "No violations found. ✅";
+                message += "✅ No violations found.";
               }
 
               await github.rest.issues.createComment({
