@@ -17,4 +17,4 @@ public with sharing class VulnerableAccountSearch {
             return null;
         }
     }
-}
+} 
