@@ -8,7 +8,7 @@ public with sharing class VulnerableAccountSearch {
         String query = 'SELECT Id, Name FROM Account WHERE Name LIKE \'%' + accountName + '%\'';
         
         // The Database.query() method executes the dynamically constructed string.
-        try {
+        try { 
             return Database.query(query);
         } catch (QueryException e) {
             // Log the exception, but a malicious user's crafted input
