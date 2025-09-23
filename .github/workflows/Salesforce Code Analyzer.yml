@@ -42,3 +42,8 @@ jobs:
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: sfca_results.sarif
+
+      - name: Debug SARIF output
+        run: |
+          echo "=== SARIF file preview ==="
+          head -100 sfca_results.sarif || echo "No SARIF file found"
