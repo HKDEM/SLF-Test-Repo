@@ -12,7 +12,7 @@ public with sharing class VulnerableAccountSearch {
             return Database.query(query);
         } catch (QueryException e) {
             // Log the exception, but a malicious user's crafted input
-            // might not even trigger an error.
+            // might not even trigger an error. 
             System.debug('Query Exception: ' + e.getMessage());
             return null;
         }
