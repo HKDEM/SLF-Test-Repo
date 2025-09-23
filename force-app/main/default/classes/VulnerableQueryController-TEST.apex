@@ -1,4 +1,3 @@
-
 public with sharing class VulnerableQueryController {
 
     // This method is vulnerable to SOQL injection because it directly
