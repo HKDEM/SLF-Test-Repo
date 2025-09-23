@@ -1,30 +1,75 @@
 name: Salesforce Code Analyzer
+
 on:
   pull_request:
-    types: [opened, edited, synchronized]
+    types: [opened, edited, synchronized, reopened]
+  push:
+    branches: [master, develop]
   workflow_dispatch:
 
 jobs:
   code_analyzer:
     runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+      contents: read 
+      
     steps:
-      - uses: actions/checkout@v4
+      # 1. Checkout code
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # 2. Install Salesforce CLI
       - name: Install Salesforce CLI
         run: npm install -g @salesforce/cli@latest
-      - name: Install Code Analyzer plugin
+
+      # 3. Install Code Analyzer plugin
+      - name: Install Code Analyzer
         run: sf plugins install @salesforce/plugin-code-analyzer@latest
+
+      # 4. Run Code Analyzer - all engines, all rules
       - name: Run Code Analyzer
-        uses: forcedotcom/run-code-analyzer@v1
+        run: |
+          sf scanner run \
+            --target . \
+            --engine pmd \
+            --engine eslint \
+            --engine retire-js \
+            --engine cpd \
+            --rule-selector ".*" \
+            --format html \
+            --outfile results.html \
+            --normalize-severity
+
+          sf scanner run \
+            --target . \
+            --engine pmd \
+            --engine eslint \
+            --engine retire-js \
+            --engine cpd \
+            --rule-selector ".*" \
+            --format json \
+            --outfile results.json \
+            --normalize-severity
+
+      # 5. Upload results as artifact
+      - name: Upload Code Analyzer Results
+        uses: actions/upload-artifact@v4
         with:
-          run-command: run
-          run-arguments: "--normalize-severity --target . --outfile results.html"
-          results-artifact-name: analyzer-results
-      - name: Fail build on violations
-        if: steps.run-code-analyzer.outputs.exit-code > 0 ||
-             steps.run-code-analyzer.outputs.num-sev1-violations > 0 ||
-             steps.run-code-analyzer.outputs.num-violations > 10
-        run: exit 1
-    
+          name: code-analyzer-results
+          path: |
+            results.html
+            results.json
+
+      # 6. Fail build if violations found
+      - name: Check Violations
+        run: |
+          if grep -q '"violations":' results.json; then
+            echo "❌ Code Analyzer found violations. Failing build."
+            exit 1
+          else
+            echo "✅ No violations found."
+          fi
       - name: Run Salesforce Code Analyzer Scan
         run: |
           sf code-analyzer run --output-file sfca_results.sarif
