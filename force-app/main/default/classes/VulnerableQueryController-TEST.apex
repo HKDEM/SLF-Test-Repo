@@ -1,13 +1,20 @@
-
-public with sharing class VulnerableQueryController {
-
-    // This method is vulnerable to SOQL injection because it directly
-    // concatenates a user-supplied string into a SOQL query.
+public with sharing class VulnerableAccountSearch {
+    
     @AuraEnabled
-    public static List<Contact> searchContacts(String searchName) {
-        String query = 'SELECT Id, Name, Email FROM Contact WHERE Name LIKE \'%' + searchName + '%\' LIMIT 10';
+    public static List<Account> searchAccounts(String accountName) {
         
-        // The analyzer will flag this as a potential security issue.
-        return Database.query(query);
+        // This query is vulnerable to SOQL Injection!
+        // The user input 'accountName' is directly concatenated into the query string.
+        String query = 'SELECT Id, Name FROM Account WHERE Name LIKE \'%' + accountName + '%\'';
+        
+        // The Database.query() method executes the dynamically constructed string.
+        try {
+            return Database.query(query);
+        } catch (QueryException e) {
+            // Log the exception, but a malicious user's crafted input
+            // might not even trigger an error.
+            System.debug('Query Exception: ' + e.getMessage());
+            return null;
+        }
     }
 }
