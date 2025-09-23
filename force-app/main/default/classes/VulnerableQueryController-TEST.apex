@@ -9,5 +9,5 @@ public with sharing class VulnerableQueryController {
         
         // The analyzer will flag this as a potential security issue.
         return Database.query(query);
-    }
+    }  
 }
