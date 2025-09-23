@@ -3,7 +3,7 @@ name: Salesforce Code Analyzer SARIF Scan
 on:
   pull_request:
     branches:
-      - main
+      - master
 
 jobs:
   code-scan:
