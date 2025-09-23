@@ -11,3 +11,4 @@ public with sharing class VulnerableQueryController {
         return Database.query(query);
     }
 }
+ 
