@@ -15,6 +15,6 @@ public with sharing class VulnerableAccountSearch {
             // might not even trigger an error.
             System.debug('Query Exception: ' + e.getMessage());
             return null;
-        }
+        } 
     }
 }
