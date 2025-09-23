@@ -22,8 +22,9 @@ jobs:
       - name: Install Code Analyzer Plugin
         run: sf plugins install @salesforce/plugin-code-analyzer
 
-      - name: Run Salesforce Code Analyzer
-        run: sf code-analyzer run --format sarif --output-file sfca_results.sarif
+      - name: Run Salesforce Code Analyzer on the entire repo
+        run: |
+          sf code-analyzer run --sarif-file sfca_results.sarif
 
       - name: Upload SARIF file to GitHub
         uses: github/codeql-action/upload-sarif@v3
