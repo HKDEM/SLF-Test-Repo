@@ -1,34 +1,26 @@
-name: Salesforce Code Analyzer SARIF Scan
-
+name: Salesforce Code Analyzer
 on:
   pull_request:
-    branches:
-      - master
+    types: [opened, edited, synchronized]
+  workflow_dispatch:
 
 jobs:
-  code-scan:
+  code_analyzer:
     runs-on: ubuntu-latest
-    permissions:
-      security-events: write
-      contents: read
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: Install Salesforce CLI
-        run: npm install --global @salesforce/cli
-
-      - name: Install and update Salesforce CLI plugins
-        run: |
-          sf plugins install @salesforce/plugin-code-analyzer
-          sf plugins update
-          
-      - name: Run Salesforce Code Analyzer Scan
-        run: |
-          sf code-analyzer run --output-file sfca_results.sarif
-
-      - name: Upload SARIF file to GitHub
-        uses: github/codeql-action/upload-sarif@v3
+        run: npm install -g @salesforce/cli@latest
+      - name: Install Code Analyzer plugin
+        run: sf plugins install @salesforce/plugin-code-analyzer@latest
+      - name: Run Code Analyzer
+        uses: forcedotcom/run-code-analyzer@v1
         with:
-          sarif_file: sfca_results.sarif
+          run-command: run
+          run-arguments: "--normalize-severity --target . --outfile results.html"
+          results-artifact-name: analyzer-results
+      - name: Fail build on violations
+        if: steps.run-code-analyzer.outputs.exit-code > 0 ||
+             steps.run-code-analyzer.outputs.num-sev1-violations > 0 ||
+             steps.run-code-analyzer.outputs.num-violations > 10
+        run: exit 1
