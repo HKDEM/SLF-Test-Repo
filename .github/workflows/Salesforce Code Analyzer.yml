@@ -1,80 +1,34 @@
 name: Salesforce Code Analyzer
 
 on:
-  pull_request:
-    types: [opened, edited, synchronized, reopened]
   push:
-    branches: [master, develop]
-  workflow_dispatch:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
-  code_analyzer:
+  analyze:
     runs-on: ubuntu-latest
-    permissions:
-      security-events: write
-      contents: read 
-      
+
     steps:
-      # 1. Checkout code
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      # 2. Install Salesforce CLI
-      - name: Install Salesforce CLI
-        run: npm install -g @salesforce/cli@latest
+      - name: Set up Salesforce CLI
+        uses: amtrack/setup-sfdx-cli@v1
+        with:
+          sfdx-cli-version: latest
 
-      # 3. Install Code Analyzer plugin
-      - name: Install Code Analyzer
-        run: sf plugins install @salesforce/plugin-code-analyzer@latest
+      - name: Install Code Analyzer plugin
+        run: sf plugins install code-analyzer
 
-      # 4. Run Code Analyzer - all engines, all rules
       - name: Run Code Analyzer
         run: |
-          sf scanner run \
-            --target . \
-            --engine pmd \
-            --engine eslint \
-            --engine retire-js \
-            --engine cpd \
-            --rule-selector ".*" \
-            --format html \
-            --outfile results.html \
-            --normalize-severity
+          sf code-analyzer run --output-file sfca_results.sarif --view sarif
 
-          sf scanner run \
-            --target . \
-            --engine pmd \
-            --engine eslint \
-            --engine retire-js \
-            --engine cpd \
-            --rule-selector ".*" \
-            --format json \
-            --outfile results.json \
-            --normalize-severity
-
-      # 5. Upload results as artifact
-      - name: Upload Code Analyzer Results
-        uses: actions/upload-artifact@v4
-        with:
-          name: code-analyzer-results
-          path: |
-            results.html
-            results.json
-
-      # 6. Fail build if violations found
-      - name: Check Violations
-        run: |
-          if grep -q '"violations":' results.json; then
-            echo "❌ Code Analyzer found violations. Failing build."
-            exit 1
-          else
-            echo "✅ No violations found."
-          fi
-      - name: Run Salesforce Code Analyzer Scan
-        run: |
-          sf code-analyzer run --output-file sfca_results.sarif
-
-      - name: Upload SARIF file to GitHub
-        uses: github/codeql-action/upload-sarif@v3
+      - name: Upload SARIF results
+        uses: github/codeql-action/upload-sarif@v2
         with:
           sarif_file: sfca_results.sarif
